@@ -5,7 +5,8 @@
 // ================= 关卡数据（三关共用 LevelScene，只读这里） =================
 // 所有坐标都是画布坐标（左上角 0,0，右下角 1280,720）
 // 形状字段：
-//   type    star 星形 / circle 圆 / crescent 月牙（开口朝右）/ halfCircle 上半圆 / rect 矩形
+//   type    star 星形 / circle 圆 / crescent 月牙（开口朝右）/ halfCircle 上半圆 / rect 矩形 / image 图片
+//   image 用 key、path、x、y（图片底边中点）、height（显示高度，按比例缩放）、fallback（图片缺失时画的色块列表）
 //   size    半径（rect 用 w、h）
 //   rot     旋转角度（度）
 //   glow    true = 外面加一圈淡淡的光晕（表示「亮」）
@@ -13,31 +14,46 @@
 //   outline 描边 { color, width }
 //   front   只用于 scenery：true = 画在目标和干扰项前面（比如挡住太阳的篱笆）
 // target.hit：点击判定圆（圆心 x、y，半径 r），也是统计「擦开比例」的区域
+// frame（可选）：玻璃外框图片 { key, path, x, y, width }，x、y 是图片左上角，width 是显示宽度（按比例缩放）
+//   有图片时用图片代替玻璃底色和描边；图片缺失时自动退回色块
 const LEVELS = [
   // ---------- 第 1 关：鱼缸（深夜蓝） ----------
+  // 鱼缸图 655x429，放大到 700 宽（和原来的玻璃一样宽）；glass 是图里鱼缸正面玻璃的范围，雾只盖这里
   {
     bgColor: '#0b1a2e',
     clues: ['有五个角……', '亮亮的……', '我把它养在水草旁边……', '夜里，我是最先醒来的那一个……'],
-    glass: { x: 290, y: 80, w: 700, h: 510, radius: 28, color: 0x173b4f },
+    frame: { key: 'tank_frame_01', path: 'assets/frames/tank_frame_01.png', x: 290, y: 106, width: 700 },
+    glass: { x: 299, y: 189, w: 683, h: 353, radius: 6, color: 0x173b4f },
     fog: { color: 0xd8dee6, alpha: 0.9 },    // 较薄的水汽
     scenery: [
-      { type: 'rect', x: 640, y: 565, w: 640, h: 40, color: 0x6b6a55 },   // 缸底沙子
-      { type: 'rect', x: 405, y: 490, w: 10, h: 110, color: 0x2f6b4a },   // 水草
-      { type: 'rect', x: 430, y: 470, w: 14, h: 150, color: 0x2f6b4a },
-      { type: 'rect', x: 458, y: 485, w: 12, h: 120, color: 0x2f6b4a }
+      { type: 'rect', x: 640, y: 520, w: 560, h: 36, color: 0x6b6a55 },   // 缸底沙子
+      // 水草图片：x、y 是图片底边中点（插在沙子上），比原来的色块水草（120 高）略高
+      { type: 'image', key: 'tank_cutouts_01', path: 'assets/cutouts/tank_cutouts_01.png',
+        x: 425, y: 515, height: 200,
+        fallback: [   // 图片缺失时画回原来的三根色块水草
+          { type: 'rect', x: 405, y: 458, w: 10, h: 95, color: 0x2f6b4a },
+          { type: 'rect', x: 430, y: 445, w: 14, h: 120, color: 0x2f6b4a },
+          { type: 'rect', x: 458, y: 455, w: 12, h: 100, color: 0x2f6b4a }
+        ] },
+      // 礁石图片：在水草右边，比水草（200 高）略低
+      { type: 'image', key: 'tank_cutouts_02', path: 'assets/cutouts/tank_cutouts_02.png',
+        x: 630, y: 532, height: 170,
+        fallback: [   // 图片缺失时画一块灰色半圆当礁石
+          { type: 'halfCircle', x: 630, y: 532, size: 110, color: 0x6b7078 }
+        ] }
     ],
     // 目标：水草旁发光的星星
-    target: { type: 'star', x: 482, y: 440, size: 16, color: 0xfff2a8, glow: true,
-              hit: { x: 482, y: 440, r: 26 } },
+    target: { type: 'star', x: 482, y: 420, size: 16, color: 0xfff2a8, glow: true,
+              hit: { x: 482, y: 420, r: 26 } },
     decoys: [
-      { type: 'star', x: 395, y: 555, size: 18, color: 0xd9825b },               // 海星：星形、在水草旁，但不亮
-      { type: 'star', x: 920, y: 140, size: 16, color: 0xfff2a8, glow: true },   // 小夜灯：亮、星形，但不在水草旁
-      { type: 'star', x: 600, y: 562, size: 9, color: 0xc07aa8 },                // 彩色小石子：星形，但不亮
-      { type: 'star', x: 690, y: 568, size: 9, color: 0x7aa8c0 },
-      { type: 'star', x: 780, y: 560, size: 9, color: 0x9bc07a },
-      { type: 'circle', x: 850, y: 380, size: 8, color: 0xe8f6ff, glow: true },  // 气泡：亮，但没有角
-      { type: 'circle', x: 862, y: 330, size: 6, color: 0xe8f6ff, glow: true },
-      { type: 'circle', x: 855, y: 285, size: 5, color: 0xe8f6ff, glow: true }
+      { type: 'star', x: 395, y: 518, size: 18, color: 0xd9825b },               // 海星：星形、在水草旁，但不亮
+      { type: 'star', x: 895, y: 262, size: 16, color: 0xfff2a8, glow: true },   // 小夜灯：亮、星形，但不在水草旁
+      { type: 'star', x: 600, y: 522, size: 9, color: 0xc07aa8 },                // 彩色小石子：星形，但不亮
+      { type: 'star', x: 690, y: 528, size: 9, color: 0x7aa8c0 },
+      { type: 'star', x: 780, y: 520, size: 9, color: 0x9bc07a },
+      { type: 'circle', x: 850, y: 410, size: 8, color: 0xe8f6ff, glow: true },  // 气泡：亮，但没有角
+      { type: 'circle', x: 862, y: 365, size: 6, color: 0xe8f6ff, glow: true },
+      { type: 'circle', x: 855, y: 325, size: 5, color: 0xe8f6ff, glow: true }
     ]
   },
 
@@ -171,6 +187,8 @@ function shapePoints(s) {
 
 // 把一个形状画成独立的 Graphics 对象，放在 (s.x, s.y)，方便之后移动和缩放
 function drawShape(scene, s) {
+  if (s.type === 'image') return drawImageItem(scene, s);
+
   const g = scene.add.graphics({ x: s.x, y: s.y });
   if (s.rot) g.angle = s.rot;
 
@@ -212,6 +230,17 @@ function insideRoundedRect(px, py, w, h, r) {
   return (px - cx) * (px - cx) + (py - cy) * (py - cy) <= r * r;
 }
 
+// 画一张图片：底边中点放在 (s.x, s.y)，按 s.height 等比缩放；图片缺失时改画 s.fallback 里的色块
+function drawImageItem(scene, s) {
+  if (!scene.textures.exists(s.key)) {
+    (s.fallback || []).forEach(f => drawShape(scene, f));
+    return null;
+  }
+  const img = scene.add.image(s.x, s.y, s.key).setOrigin(0.5, 1);
+  img.setScale(s.height / img.height);
+  return img;
+}
+
 // 目标飞进格子后的缩放比例（只缩小，不放大）
 function iconScale(s) {
   return Math.min(0.8, (SLOT_SIZE * 0.35) / s.size);
@@ -231,6 +260,16 @@ function slotPosition(i, s, scale) {
 // ================= 开始画面 =================
 class StartScene extends Phaser.Scene {
   constructor() { super('Start'); }
+
+  // 在开始画面一次性加载所有关卡的图片；某张图加载失败也没关系，关卡里会退回色块
+  preload() {
+    LEVELS.forEach(level => {
+      if (level.frame) this.load.image(level.frame.key, level.frame.path);
+      [...level.scenery, ...level.decoys].forEach(s => {
+        if (s.type === 'image') this.load.image(s.key, s.path);
+      });
+    });
+  }
 
   create() {
     // 背景色和第 1 关一样
@@ -282,10 +321,18 @@ class LevelScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(level.bgColor);
 
     // 画面分层（从下到上，后画的在上面）：
-    // 玻璃后的底色 → 后面的景物 → 目标 → 干扰项 → 前面的景物 → 雾 → 玻璃外框 → 界面
-    const back = this.add.graphics();
-    back.fillStyle(glass.color, 1);
-    back.fillRoundedRect(glass.x, glass.y, glass.w, glass.h, glass.radius);
+    // 玻璃后的底色（或外框图片）→ 后面的景物 → 目标 → 干扰项 → 前面的景物 → 雾 → 玻璃外框描边 → 界面
+    // 外框图片里已经画了玻璃和背景，所以放在最下面当底图
+    const frame = level.frame;
+    const hasFrameImage = frame && this.textures.exists(frame.key);
+    if (hasFrameImage) {
+      const img = this.add.image(frame.x, frame.y, frame.key).setOrigin(0, 0);
+      img.setScale(frame.width / img.width);
+    } else {
+      const back = this.add.graphics();
+      back.fillStyle(glass.color, 1);
+      back.fillRoundedRect(glass.x, glass.y, glass.w, glass.h, glass.radius);
+    }
 
     level.scenery.filter(s => !s.front).forEach(s => drawShape(this, s));
     this.target = drawShape(this, level.target);
@@ -294,9 +341,12 @@ class LevelScene extends Phaser.Scene {
 
     this.createFog();
 
-    this.add.graphics()
-      .lineStyle(8, 0x8796a8, 1)
-      .strokeRoundedRect(glass.x, glass.y, glass.w, glass.h, glass.radius);
+    // 没有外框图片时，画一圈描边当玻璃边框
+    if (!hasFrameImage) {
+      this.add.graphics()
+        .lineStyle(8, 0x8796a8, 1)
+        .strokeRoundedRect(glass.x, glass.y, glass.w, glass.h, glass.radius);
+    }
 
     this.createSlots();
     this.createClue();
