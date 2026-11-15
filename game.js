@@ -6,7 +6,8 @@
 // 所有坐标都是画布坐标（左上角 0,0，右下角 1280,720）
 // 形状字段：
 //   type    star 星形 / circle 圆 / crescent 月牙（开口朝右）/ halfCircle 上半圆 / rect 矩形 / image 图片
-//   image 用 key、path、x、y（图片底边中点）、height（显示高度，按比例缩放）、fallback（图片缺失时画的色块列表）
+//   image 用 key、path、x、y；用 height 或 width 等比缩放（只写一个）；fallback 是图片缺失时的色块
+// overlays（可选）：先于鱼缸绘制的叠层（比如底部胸像，垫在鱼缸后面）
 //   size    半径（rect 用 w、h）
 //   rot     旋转角度（度）
 //   glow    true = 外面加一圈淡淡的光晕（表示「亮」）
@@ -14,7 +15,7 @@
 //   outline 描边 { color, width }
 //   front   只用于 scenery：true = 画在目标和干扰项前面（比如挡住太阳的篱笆）
 // target.hit：点击判定圆（圆心 x、y，半径 r），也是统计「擦开比例」的区域
-// frame（可选）：玻璃外框图片 { key, path, x, y, width }，x、y 是图片左上角，width 是显示宽度（按比例缩放）
+// frame（可选）：玻璃外框图片 { key, path, x, y, width 或 height }，x、y 是图片左上角，宽或高二选一等比缩放
 //   有图片时用图片代替玻璃底色和描边；图片缺失时自动退回色块
 const LEVELS = [
   // ---------- 第 1 关：鱼缸（深夜蓝） ----------
@@ -23,6 +24,11 @@ const LEVELS = [
     bgColor: '#0b1a2e',
     clues: ['有五个角……', '亮亮的……', '我把它养在水草旁边……', '夜里，我是最先醒来的那一个……'],
     frame: { key: 'tank_frame_01', path: 'assets/frames/tank_frame_01.png', x: 290, y: 106, width: 700 },
+    // 屏幕底部胸像：比鱼缸（700 宽）略窄，贴底居中；先画，垫在鱼缸后面
+    overlays: [
+      { type: 'image', key: 'viewer_01', path: 'assets/ui/viewer_01.png',
+        x: 640, y: 860, width: 640, originX: 0.5, originY: 1 }
+    ],
     glass: { x: 299, y: 189, w: 683, h: 353, radius: 6, color: 0x173b4f },
     fog: { color: 0xd8dee6, alpha: 0.9 },    // 较薄的水汽
     scenery: [
@@ -35,61 +41,103 @@ const LEVELS = [
           { type: 'rect', x: 430, y: 445, w: 14, h: 120, color: 0x2f6b4a },
           { type: 'rect', x: 458, y: 455, w: 12, h: 100, color: 0x2f6b4a }
         ] },
+      // 珊瑚图片：在水草和礁石之间，高度约为礁石的一半；排在水草后、礁石前，所以画在水草前面、被礁石轻微挡住
+      { type: 'image', key: 'tank_cutouts_03', path: 'assets/cutouts/tank_cutouts_03.png',
+        x: 480, y: 525, height: 85,
+        fallback: [   // 图片缺失时画一个紫色圆当珊瑚
+          { type: 'circle', x: 480, y: 490, size: 35, color: 0x8a7aa8 }
+        ] },
+      // 沙堡图片：在礁石右后方，比水草（200 高）更高；排在礁石前面，所以会被礁石轻微挡住
+      //   底边比礁石底边高一点，看起来在礁石后面
+      { type: 'image', key: 'tank_cutouts_04', path: 'assets/cutouts/tank_cutouts_04.png',
+        x: 810, y: 515, height: 260,
+        fallback: [   // 图片缺失时画一个沙色矩形当沙堡
+          { type: 'rect', x: 825, y: 430, w: 150, h: 170, color: 0xc8b48a }
+        ] },
+      // 小海草：沙堡和礁石之间；排在礁石前面画，所以会被礁石轻微挡住；高度约为礁石的 2/3
+      { type: 'image', key: 'tank_cutouts_08', path: 'assets/cutouts/tank_cutouts_08.png',
+        x: 750, y: 510, height: 113,
+        fallback: [
+          { type: 'rect', x: 720, y: 480, w: 8, h: 90, color: 0x2f6b4a },
+          { type: 'rect', x: 735, y: 470, w: 10, h: 105, color: 0x2f6b4a }
+        ] },
       // 礁石图片：在水草右边，比水草（200 高）略低
       { type: 'image', key: 'tank_cutouts_02', path: 'assets/cutouts/tank_cutouts_02.png',
         x: 630, y: 532, height: 170,
         fallback: [   // 图片缺失时画一块灰色半圆当礁石
           { type: 'halfCircle', x: 630, y: 532, size: 110, color: 0x6b7078 }
-        ] }
+        ] },
+      // 小鱼：鱼缸中上方，大小和海星差不多（高约 54）
+      { type: 'image', key: 'tank_cutouts_07', path: 'assets/cutouts/tank_cutouts_07.png',
+        x: 640, y: 280, height: 54, originX: 0.5, originY: 0.5,
+        fallback: [{ type: 'circle', x: 640, y: 280, size: 22, color: 0xf0d060 }] }
     ],
-    // 目标：水草旁发光的星星
-    target: { type: 'star', x: 482, y: 420, size: 16, color: 0xfff2a8, glow: true,
-              hit: { x: 482, y: 420, r: 26 } },
+    // 目标：水草旁发光的星星鹅卵石（图片位置和点击判定必须一致）
+    target: { type: 'image', key: 'tank_cutouts_06', path: 'assets/cutouts/tank_cutouts_06.png',
+              x: 395, y: 500, height: 36, originX: 0.5, originY: 0.5,
+              hit: { x: 395, y: 500, r: 28 },
+              fallback: [{ type: 'star', x: 395, y: 500, size: 16, color: 0xfff2a8, glow: true }] },
     decoys: [
-      { type: 'star', x: 395, y: 518, size: 18, color: 0xd9825b },               // 海星：星形、在水草旁，但不亮
       { type: 'star', x: 895, y: 262, size: 16, color: 0xfff2a8, glow: true },   // 小夜灯：亮、星形，但不在水草旁
       { type: 'star', x: 600, y: 522, size: 9, color: 0xc07aa8 },                // 彩色小石子：星形，但不亮
       { type: 'star', x: 690, y: 528, size: 9, color: 0x7aa8c0 },
-      { type: 'star', x: 780, y: 520, size: 9, color: 0x9bc07a },
+      // 礁石和沙堡之间的海星：替换原先绿色小石子，长宽约为原星（直径约 18）的三倍
+      { type: 'image', key: 'tank_cutouts_05', path: 'assets/cutouts/tank_cutouts_05.png',
+        x: 780, y: 500, height: 54, originX: 0.5, originY: 0.5,
+        fallback: [{ type: 'star', x: 780, y: 520, size: 9, color: 0x9bc07a }] },
       { type: 'circle', x: 850, y: 410, size: 8, color: 0xe8f6ff, glow: true },  // 气泡：亮，但没有角
       { type: 'circle', x: 862, y: 365, size: 6, color: 0xe8f6ff, glow: true },
       { type: 'circle', x: 855, y: 325, size: 5, color: 0xe8f6ff, glow: true }
     ]
   },
 
+
   // ---------- 第 2 关：电视机里的客厅（蓝调时刻） ----------
+  // 电视机图 634x655，按高度 760 显示（略超出 720 画幅）；图里已带脖子，所以本关不用 overlays 胸像
+  // glass 对准图里 CRT 屏幕区域；景物坐标已从旧玻璃映射到新屏幕
   {
     bgColor: '#1d3d66',
     clues: ['被放在软绵绵的东西上……', '弯弯的……', '有两个小洞……', '我曾经挂在天上，现在睡在这里……'],
-    glass: { x: 290, y: 80, w: 700, h: 510, radius: 28, color: 0x3b3445 },
+    frame: { key: 'tv_frame_01', path: 'assets/frames/tv_frame_01.png', x: 272, y: -20, height: 760 },
+    glass: { x: 365, y: 149, w: 454, h: 322, radius: 80, color: 0x3b3445 },
     fog: { color: 0xd4d6da, alpha: 0.94 },   // 灰白的雾
     scenery: [
-      { type: 'rect', x: 500, y: 470, w: 340, h: 110, color: 0x6a5a7a },  // 沙发
-      { type: 'rect', x: 870, y: 400, w: 140, h: 200, color: 0x4a5f7a },  // 外套
-      { type: 'rect', x: 450, y: 180, w: 140, h: 100, color: 0x262130 },  // 挂画
-      { type: 'rect', x: 720, y: 545, w: 150, h: 16, color: 0x5a4a3a },   // 茶几
-      { type: 'rect', x: 720, y: 515, w: 30, h: 44, color: 0xd8d0c0 }     // 马克杯
     ],
-    // 目标：外套上的月亮形状纽扣（有两个洞）
-    target: { type: 'crescent', x: 870, y: 360, size: 20, color: 0xe8d9a0, holes: true,
-              hit: { x: 862, y: 360, r: 24 } },
+    // 目标：外套上的月亮纽扣（有两个洞）；高度约等于原来月牙 size 13（直径约 26）
+    target: { type: 'image', key: 'tv_cutouts_02', path: 'assets/cutouts/tv_cutouts_02.png',
+              x: 765, y: 378, height: 20, originX: 0.5, originY: 0.5,
+              hit: { x: 765, y: 378, r: 14 },
+              fallback: [{ type: 'crescent', x: 755, y: 348, size: 13, color: 0xe8d9a0, holes: true }] },
     decoys: [
-      { type: 'crescent', x: 420, y: 430, size: 30, color: 0xe8d9a0 },               // 月亮靠垫：弯、软，但没有洞
-      { type: 'circle', x: 870, y: 430, size: 10, color: 0xe8d9a0, holes: true },    // 普通圆纽扣：有洞，但不弯
-      { type: 'crescent', x: 560, y: 430, size: 26, color: 0xe6c94a, rot: -90 },     // 香蕉：在沙发上、弯，但没有洞
-      { type: 'crescent', x: 733, y: 515, size: 12, color: 0xd8d0c0, rot: 180 },     // 马克杯把手：弯，但不在软的东西上
-      { type: 'crescent', x: 450, y: 180, size: 26, color: 0xe8d9a0 }                // 挂画里的月亮：弯，但不在软的东西上
+      // 月亮抱枕：弯、软，但没有洞；高度约等于原来浅黄月牙（size 20 → 直径约 40）
+      { type: 'image', key: 'tv_cutouts_01', path: 'assets/cutouts/tv_cutouts_01.png',
+        x: 445, y: 334, height: 44, originX: 0.5, originY: 0.5,
+        fallback: [{ type: 'crescent', x: 445, y: 334, size: 20, color: 0xe8d9a0 }] },
+      // 普通圆纽扣：有洞，但不弯；高度约等于原来 size 7（直径约 14）
+      { type: 'image', key: 'tv_cutouts_03', path: 'assets/cutouts/tv_cutouts_03.png',
+        x: 625, y: 374, height: 8, originX: 0.5, originY: 0.5,
+        fallback: [{ type: 'circle', x: 625, y: 374, size: 4, color: 0xe8d9a0, holes: true }] },
+      // 香蕉：弯，但没有洞；放在圆纽扣旁边，高度约等于原来 size 17
+      { type: 'image', key: 'tv_cutouts_04', path: 'assets/cutouts/tv_cutouts_04.png',
+        x: 600, y: 360, height: 36, originX: 0.5, originY: 0.5,
+        fallback: [{ type: 'crescent', x: 670, y: 390, size: 17, color: 0xe6c94a, rot: -90 }] },
+      // 月亮画：弯，但不在软的东西上；放在香蕉正上方
+      { type: 'image', key: 'tv_cutouts_05', path: 'assets/cutouts/tv_cutouts_05.png',
+        x: 620, y: 280, height: 20, originX: 0.5, originY: 0.5,
+        fallback: [{ type: 'crescent', x: 600, y: 300, size: 17, color: 0xe8d9a0 }] }
     ]
   },
 
   // ---------- 第 3 关：窗外的小花园（日出） ----------
+  // 窗景图 682x900，按宽度 700 显示（与原来玻璃同宽），高度约 924，上下略超出画幅
   {
     bgColor: '#3f74ad',
     clues: ['我在等一个很大很大的东西……', '它每天都会回来……', '它一出现，所有的灯都会变得很小……', '每一个早晨，都是从它开始的……'],
-    glass: { x: 290, y: 80, w: 700, h: 510, radius: 28, color: 0x9db4cc },
+    frame: { key: 'window_frame_01', path: 'assets/frames/window_frame_01.jpg', x: 310, y: -302, width: 660 },
+    // glass 对准整张窗景（宽 700、高约 924），雾盖满窗；景物坐标仍按旧窗户区摆放
+    glass: { x: 310, y: -302, w: 660, h: 874, radius: 12, color: 0x9db4cc },
     fog: { color: 0xe4e8ec, alpha: 0.97 },   // 大面积厚雾
     scenery: [
-      { type: 'rect', x: 640, y: 555, w: 660, h: 60, color: 0x5e7f55 },   // 草地
       { type: 'rect', x: 930, y: 400, w: 8, h: 360, color: 0x444a55 },    // 路灯杆
       { type: 'rect', x: 480, y: 300, w: 2, h: 120, color: 0xdddddd },    // 气球绳
       { type: 'rect', x: 380, y: 560, w: 4, h: 40, color: 0x3f6b3a },     // 向日葵茎
@@ -104,10 +152,12 @@ const LEVELS = [
       { type: 'rect', x: 795, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
       { type: 'rect', x: 870, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true }
     ],
-    // 目标：篱笆后面冒出金边的太阳
-    target: { type: 'halfCircle', x: 650, y: 440, size: 100, color: 0xffc94a,
-              outline: { color: 0xfff0b0, width: 6 },
-              hit: { x: 650, y: 380, r: 60 } },
+    // 目标：篱笆后面冒出的太阳；底边贴篱笆，宽约等于原来半圆直径（size 100 → 200）
+    target: { type: 'image', key: 'window_cutouts_01', path: 'assets/cutouts/window_cutouts_01.png',
+              x: 650, y: 350, width: 250, originX: 0.5, originY: 1,
+              hit: { x: 650, y: 380, r: 70 },
+              fallback: [{ type: 'halfCircle', x: 650, y: 440, size: 100, color: 0xffc94a,
+                outline: { color: 0xfff0b0, width: 6 } }] },
     decoys: [
       { type: 'circle', x: 380, y: 535, size: 14, color: 0xffc94a },               // 向日葵：黄圆，但小、在地上
       { type: 'circle', x: 930, y: 220, size: 12, color: 0xfff2c0, glow: true },   // 路灯：亮，但小
@@ -142,6 +192,20 @@ const TUNING = {
   clearPercent: 60,   // 目标区域擦开多少 % 才能点
   regrowSpeed: 15     // 雾回来的速度：每秒长回多少 %（0 = 永远不回来；15 ≈ 6.7 秒长满）
 };
+
+// 全局壁纸：开始画面、三关、结尾共用；铺满 1280x720
+const WALLPAPER = { key: 'wallpaper_01', path: 'assets/backgrounds/wallpaper_01.jpg' };
+const GAME_W = 1280;
+const GAME_H = 720;
+
+// 垫一张全屏背景；图片缺失时什么都不画，继续用场景的背景色
+function addWallpaper(scene) {
+  if (!scene.textures.exists(WALLPAPER.key)) return null;
+  return scene.add.image(0, 0, WALLPAPER.key)
+    .setOrigin(0, 0)
+    .setDisplaySize(GAME_W, GAME_H)
+    .setDepth(-1000);
+}
 
 // ================= 画形状的小工具 =================
 
@@ -230,20 +294,41 @@ function insideRoundedRect(px, py, w, h, r) {
   return (px - cx) * (px - cx) + (py - cy) * (py - cy) <= r * r;
 }
 
-// 画一张图片：底边中点放在 (s.x, s.y)，按 s.height 等比缩放；图片缺失时改画 s.fallback 里的色块
+// 相对玻璃中心的径向位置：0 = 正中，1 = 贴到椭圆边缘（再往外仍钳在 1）
+function radialEdgeT(px, py, w, h) {
+  const nx = (px - w * 0.5) / (w * 0.5);
+  const ny = (py - h * 0.5) / (h * 0.5);
+  return Math.min(1, Math.sqrt(nx * nx + ny * ny));
+}
+
+// 中间透明、外侧更实：t 从 0→1 时不透明度从 centerA 升到 edgeA
+function radialAlpha(t, centerA, edgeA) {
+  const s = t * t;   // 中间一大片更透，靠近边缘才明显变实
+  return centerA + (edgeA - centerA) * s;
+}
+
+// 画一张图片：用 width 或 height 等比缩放；默认底边中点在 (s.x, s.y)，也可设 originX / originY
+// 图片缺失时改画 s.fallback 里的色块
 function drawImageItem(scene, s) {
   if (!scene.textures.exists(s.key)) {
     (s.fallback || []).forEach(f => drawShape(scene, f));
     return null;
   }
-  const img = scene.add.image(s.x, s.y, s.key).setOrigin(0.5, 1);
-  img.setScale(s.height / img.height);
+  const ox = s.originX !== undefined ? s.originX : 0.5;
+  const oy = s.originY !== undefined ? s.originY : 1;
+  const img = scene.add.image(s.x, s.y, s.key).setOrigin(ox, oy);
+  if (s.width) img.setScale(s.width / img.width);
+  else img.setScale(s.height / img.height);
   return img;
 }
 
 // 目标飞进格子后的缩放比例（只缩小，不放大）
-function iconScale(s) {
-  return Math.min(0.8, (SLOT_SIZE * 0.35) / s.size);
+// 色块用 size；图片用纹理原高度，让格子里大约显示为格子边长的 55%
+function iconScale(s, obj) {
+  if (s.type === 'image' && obj && obj.height) {
+    return (SLOT_SIZE * 0.55) / obj.height;
+  }
+  return Math.min(0.8, (SLOT_SIZE * 0.35) / (s.size || 16));
 }
 
 // 第 i 个格子的中心：右侧一列，从上往下排
@@ -263,17 +348,19 @@ class StartScene extends Phaser.Scene {
 
   // 在开始画面一次性加载所有关卡的图片；某张图加载失败也没关系，关卡里会退回色块
   preload() {
+    this.load.image(WALLPAPER.key, WALLPAPER.path);
     LEVELS.forEach(level => {
       if (level.frame) this.load.image(level.frame.key, level.frame.path);
-      [...level.scenery, ...level.decoys].forEach(s => {
-        if (s.type === 'image') this.load.image(s.key, s.path);
+      [...level.scenery, ...level.decoys, level.target, ...(level.overlays || [])].forEach(s => {
+        if (s && s.type === 'image') this.load.image(s.key, s.path);
       });
     });
   }
 
   create() {
-    // 背景色和第 1 关一样
+    // 背景色作兜底；壁纸铺满画幅
     this.cameras.main.setBackgroundColor(LEVELS[0].bgColor);
+    addWallpaper(this);
 
     // 标题
     this.add.text(640, 250, '雾里有什么', {
@@ -317,21 +404,24 @@ class LevelScene extends Phaser.Scene {
     const level = this.level;
     const glass = level.glass;
 
-    // 背景色：每关更亮一点
+    // 背景色作兜底；三关共用同一张壁纸
     this.cameras.main.setBackgroundColor(level.bgColor);
+    addWallpaper(this);
 
     // 画面分层（从下到上，后画的在上面）：
-    // 玻璃后的底色（或外框图片）→ 后面的景物 → 目标 → 干扰项 → 前面的景物 → 雾 → 玻璃外框描边 → 界面
-    // 外框图片里已经画了玻璃和背景，所以放在最下面当底图
+    // 壁纸 → 胸像 → 鱼缸 → 关卡内容 → 雾 → 界面 → 再接收输入
+    // 胸像先画，垫在鱼缸后面，做成「鱼缸当头」的拼贴
+    (level.overlays || []).forEach(s => drawShape(this, s));
+
     const frame = level.frame;
     const hasFrameImage = frame && this.textures.exists(frame.key);
     if (hasFrameImage) {
       const img = this.add.image(frame.x, frame.y, frame.key).setOrigin(0, 0);
-      img.setScale(frame.width / img.width);
+      if (frame.height) img.setScale(frame.height / img.height);
+      else img.setScale(frame.width / img.width);
     } else {
-      const back = this.add.graphics();
-      back.fillStyle(glass.color, 1);
-      back.fillRoundedRect(glass.x, glass.y, glass.w, glass.h, glass.radius);
+      // 无外框图时：玻璃底色也从中心向外渐变（中间更透，边缘更实）
+      this.createGlassTint();
     }
 
     level.scenery.filter(s => !s.front).forEach(s => drawShape(this, s));
@@ -353,9 +443,42 @@ class LevelScene extends Phaser.Scene {
     this.setupInput();
   }
 
+  // ---------- 玻璃底色（无外框图时）----------
+  // 和雾一样：中间更透、外侧更实，圆角矩形外完全透明
+  createGlassTint() {
+    const { glass } = this.level;
+    const w = glass.w;
+    const h = glass.h;
+    const key = 'glassTint';
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const tex = this.textures.createCanvas(key, w, h);
+    const img = tex.context.createImageData(w, h);
+    const px = img.data;
+    const color = Phaser.Display.Color.IntegerToRGB(glass.color);
+    const edgeA = 230;    // 外侧较实
+    const centerA = 40;   // 中间很透
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        px[i] = color.r;
+        px[i + 1] = color.g;
+        px[i + 2] = color.b;
+        if (!insideRoundedRect(x + 0.5, y + 0.5, w, h, glass.radius)) {
+          px[i + 3] = 0;
+        } else {
+          px[i + 3] = Math.round(radialAlpha(radialEdgeT(x + 0.5, y + 0.5, w, h), centerA, edgeA));
+        }
+      }
+    }
+    tex.context.putImageData(img, 0, 0);
+    tex.refresh();
+    this.add.image(glass.x, glass.y, key).setOrigin(0, 0);
+  }
+
   // ---------- 雾 ----------
   // 雾是一张和玻璃一样大的画布贴图（每个像素一格），只在圆角矩形里有雾，
   // 所以玻璃以外的地方始终清楚。
+  // 满雾时不透明度从中心向外渐变：中间更透、外侧更实。
   // 每个像素记住「上次被擦的时间」，雾的浓度 = 离上次擦过了多久 ÷ 长满需要的时间，
   // 所以雾会慢慢、均匀地长回来，越晚擦的地方越晚起雾。
   createFog() {
@@ -373,11 +496,18 @@ class LevelScene extends Phaser.Scene {
     this.wipeTime = new Float64Array(w * h).fill(-Infinity);   // 每个像素上次被擦的时间（没擦过 = -Infinity）
 
     const color = Phaser.Display.Color.IntegerToRGB(fog.color);
-    const fullAlpha = Math.round(fog.alpha * 255);
+    const edgeA = Math.round(fog.alpha * 255);
+    const centerA = Math.round(edgeA * 0.12);   // 中间约保留一成雾，大部分透出景物
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
-        this.fogBase[i] = insideRoundedRect(x + 0.5, y + 0.5, w, h, glass.radius) ? fullAlpha : 0;
+        if (!insideRoundedRect(x + 0.5, y + 0.5, w, h, glass.radius)) {
+          this.fogBase[i] = 0;
+        } else {
+          this.fogBase[i] = Math.round(
+            radialAlpha(radialEdgeT(x + 0.5, y + 0.5, w, h), centerA, edgeA)
+          );
+        }
         this.fogPixels[i * 4] = color.r;
         this.fogPixels[i * 4 + 1] = color.g;
         this.fogPixels[i * 4 + 2] = color.b;
@@ -562,7 +692,7 @@ class LevelScene extends Phaser.Scene {
     this.clueTimer.remove();
 
     const s = this.level.target;
-    const scale = iconScale(s);
+    const scale = iconScale(s, this.target);
     const slot = slotPosition(this.levelIndex, s, scale);
 
     this.target.setDepth(100);   // 飞的时候放到最上层，不被雾挡住
@@ -601,9 +731,9 @@ class LevelScene extends Phaser.Scene {
       g.strokeRoundedRect(c.x - half, c.y - half, SLOT_SIZE, SLOT_SIZE, 8);
 
       if (i < this.levelIndex) {
-        const scale = iconScale(lv.target);
-        const pos = slotPosition(i, lv.target, scale);
-        drawShape(this, { ...lv.target, x: pos.x, y: pos.y }).setScale(scale);
+        const pos = slotPosition(i, lv.target, 1);
+        const icon = drawShape(this, { ...lv.target, x: pos.x, y: pos.y });
+        if (icon) icon.setScale(iconScale(lv.target, icon));
       }
     });
   }
@@ -667,11 +797,12 @@ class EndScene extends Phaser.Scene {
   constructor() { super('End'); }
 
   create() {
-    // 上一关已经渐变成白色，这里直接用白色背景接上
+    // 片尾也用同一张壁纸；文字改浅色，在花纹上看得清
     this.cameras.main.setBackgroundColor('#ffffff');
+    addWallpaper(this);
 
     this.add.text(640, 300, '早安', {
-      fontFamily: FONT, fontSize: '56px', color: '#3a4a5c'
+      fontFamily: FONT, fontSize: '56px', color: '#f0f4f8'
     }).setOrigin(0.5);
 
     const button = this.add.rectangle(640, 430, 220, 64, 0x4f86bf)
