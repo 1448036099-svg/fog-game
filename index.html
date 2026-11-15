@@ -1,16 +1,20 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>雾里有什么</title>
+  <title>What's in the Fog</title>
   <style>
     html, body { margin: 0; height: 100%; background: #0b1a2e; overflow: hidden; }
-    canvas { touch-action: none; }
+    /* 手形光标：热点在指尖（约 18, 9） */
+    canvas {
+      touch-action: none;
+      cursor: url('assets/ui/cursor_hand_sm.png') 18 9, auto;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
 </head>
 <body>
-  <script src="game.js?v=sun1"></script>
+  <script src="game.js?v=btn26"></script>
 </body>
 </html>

@@ -17,19 +17,21 @@
 // target.hit：点击判定圆（圆心 x、y，半径 r），也是统计「擦开比例」的区域
 // frame（可选）：玻璃外框图片 { key, path, x, y, width 或 height }，x、y 是图片左上角，宽或高二选一等比缩放
 //   有图片时用图片代替玻璃底色和描边；图片缺失时自动退回色块
+// frameFront（可选）：画在雾上面的前景框（窗帘窗框等），字段同 frame；界面（格子、线索）仍在更上面
+// glass.shape（可选）：'rounded'（默认，用 radius）/ 'superellipse'（超椭圆，用 n；n=2 椭圆，越大越方，CRT 大约 3～4）
 const LEVELS = [
   // ---------- 第 1 关：鱼缸（深夜蓝） ----------
   // 鱼缸图 655x429，放大到 700 宽（和原来的玻璃一样宽）；glass 是图里鱼缸正面玻璃的范围，雾只盖这里
   {
     bgColor: '#0b1a2e',
-    clues: ['有五个角……', '亮亮的……', '我把它养在水草旁边……', '夜里，我是最先醒来的那一个……'],
+    clues: ['Five points...', 'It glows...', 'I keep it next to the seaweed...', 'At night, I am the first to wake...'],
     frame: { key: 'tank_frame_01', path: 'assets/frames/tank_frame_01.png', x: 290, y: 106, width: 700 },
     // 屏幕底部胸像：比鱼缸（700 宽）略窄，贴底居中；先画，垫在鱼缸后面
     overlays: [
       { type: 'image', key: 'viewer_01', path: 'assets/ui/viewer_01.png',
         x: 640, y: 860, width: 640, originX: 0.5, originY: 1 }
     ],
-    glass: { x: 299, y: 189, w: 683, h: 353, radius: 6, color: 0x173b4f },
+    glass: { x: 303, y: 192, w: 673, h: 348, radius: 6, color: 0x173b4f },
     fog: { color: 0xd8dee6, alpha: 0.9 },    // 较薄的水汽
     scenery: [
       { type: 'rect', x: 640, y: 520, w: 560, h: 36, color: 0x6b6a55 },   // 缸底沙子
@@ -97,9 +99,10 @@ const LEVELS = [
   // glass 对准图里 CRT 屏幕区域；景物坐标已从旧玻璃映射到新屏幕
   {
     bgColor: '#1d3d66',
-    clues: ['被放在软绵绵的东西上……', '弯弯的……', '有两个小洞……', '我曾经挂在天上，现在睡在这里……'],
+    clues: ['Sitting on something soft...', 'Curved...', 'Two little holes...', 'I once hung in the sky; now I sleep here...'],
     frame: { key: 'tv_frame_01', path: 'assets/frames/tv_frame_01.png', x: 272, y: -20, height: 760 },
-    glass: { x: 365, y: 149, w: 454, h: 322, radius: 80, color: 0x3b3445 },
+    // glass 贴合 CRT 黑色边框：超椭圆；n 越大越方、越小越圆（2=椭圆，≈3.5 像显像管，→∞ 接近矩形）
+    glass: { x: 366, y: 148, w: 452, h: 334, shape: 'superellipse', n: 4, color: 0x3b3445 },
     fog: { color: 0xd4d6da, alpha: 0.94 },   // 灰白的雾
     scenery: [
     ],
@@ -132,51 +135,87 @@ const LEVELS = [
   // 窗景图 682x900，按宽度 700 显示（与原来玻璃同宽），高度约 924，上下略超出画幅
   {
     bgColor: '#3f74ad',
-    clues: ['我在等一个很大很大的东西……', '它每天都会回来……', '它一出现，所有的灯都会变得很小……', '每一个早晨，都是从它开始的……'],
+    clues: ['I am waiting for something very, very big...', 'It comes back every day...', 'When it appears, every light looks tiny...', 'Every morning begins with it...'],
     frame: { key: 'window_frame_01', path: 'assets/frames/window_frame_01.jpg', x: 310, y: -302, width: 660 },
-    // glass 对准整张窗景（宽 700、高约 924），雾盖满窗；景物坐标仍按旧窗户区摆放
+    // 窗框+窗帘+衬衫：宽与窗景相同（660），画在雾上面；底边约贴画幅底
+    frameFront: { key: 'window_overlay_01', path: 'assets/frames/window_overlay_01.png',
+      x: 270, y: -295, width: 750 },
+    // glass 对准整张窗景，雾盖满窗；景物坐标仍按旧窗户区摆放
     glass: { x: 310, y: -302, w: 660, h: 874, radius: 12, color: 0x9db4cc },
     fog: { color: 0xe4e8ec, alpha: 0.97 },   // 大面积厚雾
     scenery: [
-      { type: 'rect', x: 930, y: 400, w: 8, h: 360, color: 0x444a55 },    // 路灯杆
-      { type: 'rect', x: 480, y: 300, w: 2, h: 120, color: 0xdddddd },    // 气球绳
-      { type: 'rect', x: 380, y: 560, w: 4, h: 40, color: 0x3f6b3a },     // 向日葵茎
-      // 篱笆：画在太阳前面，挡住太阳下半部分
-      { type: 'rect', x: 640, y: 440, w: 640, h: 12, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 345, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 420, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 495, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 570, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 645, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 720, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 795, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
-      { type: 'rect', x: 870, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true }
+      // 篱笆：画在太阳前面，挡住太阳下半部分；顶边上移一点盖住太阳底边，宽与旧篱笆（640）相近
+      { type: 'image', key: 'window_cutouts_02', path: 'assets/cutouts/window_cutouts_02.png',
+        x: 640, y: 300, width: 640, originX: 0.5, originY: 0, front: true,
+        fallback: [
+          { type: 'rect', x: 640, y: 440, w: 640, h: 12, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 345, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 420, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 495, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 570, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 645, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 720, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 795, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true },
+          { type: 'rect', x: 870, y: 470, w: 30, h: 120, color: 0xcdbb98, front: true }
+        ] },
+      // 树：太阳左侧、篱笆前面（front，排在篱笆后画）
+      { type: 'image', key: 'window_cutouts_03', path: 'assets/cutouts/window_cutouts_03.png',
+        x: 470, y: 420, height: 300, originX: 0.5, originY: 1, front: true },
+      // 大灌木丛：太阳正下方、篱笆底部（front）
+      { type: 'image', key: 'window_cutouts_04', path: 'assets/cutouts/window_cutouts_04.png',
+        x: 700, y: 420, width: 100, originX: 0.5, originY: 1, front: true },
+      // 小灌木丛：大灌木丛右侧（front）
+      { type: 'image', key: 'window_cutouts_05', path: 'assets/cutouts/window_cutouts_05.png',
+        x: 790, y: 420, width: 100, originX: 0.5, originY: 1, front: true },
+      // 向日葵：黄、小、在地上；front 且排在最后，盖住树和篱笆
+      { type: 'image', key: 'window_cutouts_08', path: 'assets/cutouts/window_cutouts_08.png',
+        x: 530, y: 470, height: 100, originX: 0.5, originY: 1, front: true,
+        fallback: [
+          { type: 'circle', x: 380, y: 535, size: 14, color: 0xffc94a },
+          { type: 'rect', x: 380, y: 560, w: 4, h: 40, color: 0x3f6b3a }
+        ] },
+      // 浇水壶：向日葵旁边（front，同层盖住篱笆）
+      { type: 'image', key: 'window_cutouts_09', path: 'assets/cutouts/window_cutouts_09.png',
+        x: 450, y: 470, height: 70, originX: 0.5, originY: 1, front: true }
     ],
-    // 目标：篱笆后面冒出的太阳；底边贴篱笆，宽约等于原来半圆直径（size 100 → 200）
+    // 目标：篱笆后面冒出的太阳；底边贴篱笆，宽 250 → 高约 165
+    // hit 对准太阳盘中心（图底在 350，盘心约上移 70），半径盖住盘面，避免判定圆过大导致擦不开
     target: { type: 'image', key: 'window_cutouts_01', path: 'assets/cutouts/window_cutouts_01.png',
               x: 650, y: 350, width: 250, originX: 0.5, originY: 1,
-              hit: { x: 650, y: 380, r: 70 },
+              hit: { x: 650, y: 280, r: 85 },
               fallback: [{ type: 'halfCircle', x: 650, y: 440, size: 100, color: 0xffc94a,
                 outline: { color: 0xfff0b0, width: 6 } }] },
     decoys: [
-      { type: 'circle', x: 380, y: 535, size: 14, color: 0xffc94a },               // 向日葵：黄圆，但小、在地上
-      { type: 'circle', x: 930, y: 220, size: 12, color: 0xfff2c0, glow: true },   // 路灯：亮，但小
-      { type: 'circle', x: 480, y: 220, size: 24, color: 0xffd23a }                // 黄色气球：圆、黄
+      // 路灯：亮，但小；高度约等于原来灯杆（360）
+      { type: 'image', key: 'window_cutouts_06', path: 'assets/cutouts/window_cutouts_06.png',
+        x: 850, y: 430, height: 250, originX: 0.5, originY: 1,
+        fallback: [
+          { type: 'rect', x: 930, y: 400, w: 8, h: 360, color: 0x444a55 },
+          { type: 'circle', x: 930, y: 220, size: 12, color: 0xfff2c0, glow: true }
+        ] },
+      // 黄色气球：圆、黄；放在路灯左上方（路灯约 900,430）
+      { type: 'image', key: 'window_cutouts_07', path: 'assets/cutouts/window_cutouts_07.png',
+        x: 790, y: 230, height: 160, originX: 0.5, originY: 1,
+        fallback: [
+          { type: 'circle', x: 820, y: 200, size: 24, color: 0xffd23a },
+          { type: 'rect', x: 820, y: 260, w: 2, h: 80, color: 0xdddddd }
+        ] }
     ]
   }
 ];
 
 // ================= 其他设置 =================
-const FONT = '"PingFang SC", "Microsoft YaHei", sans-serif';
+const FONT = 'Georgia, "Palatino Linotype", "Book Antiqua", "Songti SC", "STSong", serif';
 const CLUE_INTERVAL = 10000;   // 卡住多久（毫秒）出现下一句线索
-const CLUE_MAX_CHARS = 14;     // 线索一行最多几个字，超过就在逗号后换行
+const CLUE_MAX_CHARS = 32;     // 线索一行最多几个字符，超过就在逗号后换行
 const BUBBLE_LEFT = 16;        // 第一个对话框的左上角 x
 const BUBBLE_TOP = 16;         // 第一个对话框的左上角 y
 const BUBBLE_PAD_X = 12;       // 对话框里文字和左右边的距离
 const BUBBLE_PAD_Y = 8;        // 对话框里文字和上下边的距离
 const BUBBLE_GAP = 16;         // 上下两个对话框之间的距离
-const BUBBLE_COLOR = 0xf2efe6; // 对话框底色
-const BUBBLE_TEXT = '#2a3445'; // 对话框里的文字颜色
+const BUBBLE_COLOR = 0x000000; // 对话框底色（黑）
+const BUBBLE_ALPHA = 0.75;     // 对话框不透明度 75%
+const BUBBLE_TEXT = '#f2efe6'; // 对话框里的文字颜色（浅色，衬黑底）
 const TAP_MAX_MOVE = 12;       // 按下后移动少于这个距离（像素）算「点击」，超过算「擦」
 const TAP_GRACE_MS = 2000;     // 目标处「擦开够多」之后，这么久（毫秒）之内就算雾又回来了也还能点
 const HIT_SAMPLE_STEP = 2;     // 统计目标处擦开比例时，每隔几个像素取一个点（只用来算比例，看不见）
@@ -195,8 +234,24 @@ const TUNING = {
 
 // 全局壁纸：开始画面、三关、结尾共用；铺满 1280x720
 const WALLPAPER = { key: 'wallpaper_01', path: 'assets/backgrounds/wallpaper_01.jpg' };
+const BTN_NOTE = { key: 'btn_note_01', path: 'assets/ui/btn_note_01.png' };
 const GAME_W = 1280;
 const GAME_H = 720;
+// 自定义鼠标：缩小后的手图，热点对准食指指尖
+const CURSOR_CSS = "url('assets/ui/cursor_hand_sm.png') 18 9, auto";
+
+// 字条按钮：撕页便签底图 + 深色文字；返回可点的图片（当热区）
+function addNoteButton(scene, x, y, label, width = 220) {
+  const img = scene.add.image(x, y, BTN_NOTE.key).setOrigin(0.5);
+  if (scene.textures.exists(BTN_NOTE.key)) {
+    img.setScale(width / img.width);
+    img.setInteractive({ cursor: CURSOR_CSS });
+  }
+  scene.add.text(x, y - 2, label, {
+    fontFamily: FONT, fontSize: '16pt', color: '#2a3445'
+  }).setOrigin(0.5);
+  return img;
+}
 
 // 垫一张全屏背景；图片缺失时什么都不画，继续用场景的背景色
 function addWallpaper(scene) {
@@ -294,10 +349,29 @@ function insideRoundedRect(px, py, w, h, r) {
   return (px - cx) * (px - cx) + (py - cy) * (py - cy) <= r * r;
 }
 
-// 相对玻璃中心的径向位置：0 = 正中，1 = 贴到椭圆边缘（再往外仍钳在 1）
-function radialEdgeT(px, py, w, h) {
+// 超椭圆（Lamé 曲线）：|2x/w−1|^n + |2y/h−1|^n ≤ 1；左上角是 0,0
+function insideSuperellipse(px, py, w, h, n) {
   const nx = (px - w * 0.5) / (w * 0.5);
   const ny = (py - h * 0.5) / (h * 0.5);
+  return Math.pow(Math.abs(nx), n) + Math.pow(Math.abs(ny), n) <= 1;
+}
+
+// 点是否在本关玻璃形状内（默认圆角矩形；电视机用超椭圆）
+function insideGlass(px, py, glass) {
+  if (glass.shape === 'superellipse') {
+    return insideSuperellipse(px, py, glass.w, glass.h, glass.n || 3.5);
+  }
+  return insideRoundedRect(px, py, glass.w, glass.h, glass.radius || 0);
+}
+
+// 相对玻璃中心的径向位置：0 = 正中，1 = 贴到边缘（再往外仍钳在 1）
+// 超椭圆用同样的 n 度量，雾的渐变轮廓和玻璃形状一致
+function radialEdgeT(px, py, w, h, n) {
+  const nx = (px - w * 0.5) / (w * 0.5);
+  const ny = (py - h * 0.5) / (h * 0.5);
+  if (n && n !== 2) {
+    return Math.min(1, Math.pow(Math.pow(Math.abs(nx), n) + Math.pow(Math.abs(ny), n), 1 / n));
+  }
   return Math.min(1, Math.sqrt(nx * nx + ny * ny));
 }
 
@@ -349,8 +423,10 @@ class StartScene extends Phaser.Scene {
   // 在开始画面一次性加载所有关卡的图片；某张图加载失败也没关系，关卡里会退回色块
   preload() {
     this.load.image(WALLPAPER.key, WALLPAPER.path);
+    this.load.image(BTN_NOTE.key, BTN_NOTE.path);
     LEVELS.forEach(level => {
       if (level.frame) this.load.image(level.frame.key, level.frame.path);
+      if (level.frameFront) this.load.image(level.frameFront.key, level.frameFront.path);
       [...level.scenery, ...level.decoys, level.target, ...(level.overlays || [])].forEach(s => {
         if (s && s.type === 'image') this.load.image(s.key, s.path);
       });
@@ -361,30 +437,34 @@ class StartScene extends Phaser.Scene {
     // 背景色作兜底；壁纸铺满画幅
     this.cameras.main.setBackgroundColor(LEVELS[0].bgColor);
     addWallpaper(this);
+    this.input.setDefaultCursor(CURSOR_CSS);
 
     // 标题
-    this.add.text(640, 250, '雾里有什么', {
-      fontFamily: FONT, fontSize: '72px', color: '#dce4f0'
+    this.add.text(640, 250, "What's in the Fog", {
+      fontFamily: FONT, fontSize: '64px', color: '#oooooo'
     }).setOrigin(0.5);
 
     // 开场文字
-    this.add.text(640, 345, '冬夜，玻璃都起雾了。', {
-      fontFamily: FONT, fontSize: '28px', color: '#b8c6da'
+    this.add.text(640, 345, 'Winter night. The glass is fogged over.', {
+      fontFamily: FONT, fontSize: '20px', color: '#oooooo'
     }).setOrigin(0.5);
 
     // 玩法提示
-    this.add.text(640, 400, '用手指擦开雾，找到线索说的东西', {
-      fontFamily: FONT, fontSize: '20px', color: '#96aac8'
+    this.add.text(640, 380, 'Wipe the fog and find what the clues describe.', {
+      fontFamily: FONT, fontSize: '20px', color: '#oooooo'
     }).setOrigin(0.5);
 
-    // 底部的「按钮」：只是文字，点屏幕任何地方都能开始
-    this.add.text(640, 600, '点击开始', {
-      fontFamily: FONT, fontSize: '26px', color: '#dce4f0',
-      backgroundColor: '#1d3d66', padding: { x: 28, y: 12 }
-    }).setOrigin(0.5);
+    // 底部字条按钮：点字条或点屏幕任意处都能开始
+    const button = addNoteButton(this, 640, 550, 'Click to Start', 220);
 
-    // 鼠标点击和手指轻点都是 pointer 事件
-    this.input.once('pointerup', () => this.scene.start('Level', { index: 0 }));
+    let started = false;
+    const go = () => {
+      if (started) return;
+      started = true;
+      this.scene.start('Level', { index: 0 });
+    };
+    if (button && button.input) button.on('pointerup', go);
+    this.input.once('pointerup', go);
   }
 }
 
@@ -407,6 +487,7 @@ class LevelScene extends Phaser.Scene {
     // 背景色作兜底；三关共用同一张壁纸
     this.cameras.main.setBackgroundColor(level.bgColor);
     addWallpaper(this);
+    this.input.setDefaultCursor(CURSOR_CSS);
 
     // 画面分层（从下到上，后画的在上面）：
     // 壁纸 → 胸像 → 鱼缸 → 关卡内容 → 雾 → 界面 → 再接收输入
@@ -438,13 +519,21 @@ class LevelScene extends Phaser.Scene {
         .strokeRoundedRect(glass.x, glass.y, glass.w, glass.h, glass.radius);
     }
 
+    // 前景窗框：盖在雾和景物上面，格子/线索仍在更上层
+    const front = level.frameFront;
+    if (front && this.textures.exists(front.key)) {
+      const img = this.add.image(front.x, front.y, front.key).setOrigin(0, 0);
+      if (front.height) img.setScale(front.height / img.height);
+      else img.setScale(front.width / img.width);
+    }
+
     this.createSlots();
     this.createClue();
     this.setupInput();
   }
 
   // ---------- 玻璃底色（无外框图时）----------
-  // 和雾一样：中间更透、外侧更实，圆角矩形外完全透明
+  // 和雾一样：中间更透、外侧更实，玻璃形状外完全透明
   createGlassTint() {
     const { glass } = this.level;
     const w = glass.w;
@@ -457,16 +546,17 @@ class LevelScene extends Phaser.Scene {
     const color = Phaser.Display.Color.IntegerToRGB(glass.color);
     const edgeA = 230;    // 外侧较实
     const centerA = 40;   // 中间很透
+    const n = glass.shape === 'superellipse' ? (glass.n || 3.5) : 2;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4;
         px[i] = color.r;
         px[i + 1] = color.g;
         px[i + 2] = color.b;
-        if (!insideRoundedRect(x + 0.5, y + 0.5, w, h, glass.radius)) {
+        if (!insideGlass(x + 0.5, y + 0.5, glass)) {
           px[i + 3] = 0;
         } else {
-          px[i + 3] = Math.round(radialAlpha(radialEdgeT(x + 0.5, y + 0.5, w, h), centerA, edgeA));
+          px[i + 3] = Math.round(radialAlpha(radialEdgeT(x + 0.5, y + 0.5, w, h, n), centerA, edgeA));
         }
       }
     }
@@ -476,7 +566,7 @@ class LevelScene extends Phaser.Scene {
   }
 
   // ---------- 雾 ----------
-  // 雾是一张和玻璃一样大的画布贴图（每个像素一格），只在圆角矩形里有雾，
+  // 雾是一张和玻璃一样大的画布贴图（每个像素一格），只在玻璃形状里有雾，
   // 所以玻璃以外的地方始终清楚。
   // 满雾时不透明度从中心向外渐变：中间更透、外侧更实。
   // 每个像素记住「上次被擦的时间」，雾的浓度 = 离上次擦过了多久 ÷ 长满需要的时间，
@@ -498,14 +588,15 @@ class LevelScene extends Phaser.Scene {
     const color = Phaser.Display.Color.IntegerToRGB(fog.color);
     const edgeA = Math.round(fog.alpha * 255);
     const centerA = Math.round(edgeA * 0.12);   // 中间约保留一成雾，大部分透出景物
+    const n = glass.shape === 'superellipse' ? (glass.n || 3.5) : 2;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
-        if (!insideRoundedRect(x + 0.5, y + 0.5, w, h, glass.radius)) {
+        if (!insideGlass(x + 0.5, y + 0.5, glass)) {
           this.fogBase[i] = 0;
         } else {
           this.fogBase[i] = Math.round(
-            radialAlpha(radialEdgeT(x + 0.5, y + 0.5, w, h), centerA, edgeA)
+            radialAlpha(radialEdgeT(x + 0.5, y + 0.5, w, h, n), centerA, edgeA)
           );
         }
         this.fogPixels[i * 4] = color.r;
@@ -763,7 +854,9 @@ class LevelScene extends Phaser.Scene {
     this.clueBox.removeAll(true);
     let y = BUBBLE_TOP;
     this.level.clues.slice(0, this.shownLines).forEach(line => {
-      const content = line.length > CLUE_MAX_CHARS ? line.replace('，', '，\n') : line;
+      const content = line.length > CLUE_MAX_CHARS
+        ? line.replace(/，\s*|, /, m => m.trimEnd() + '\n')
+        : line;
       const text = this.add.text(BUBBLE_LEFT + BUBBLE_PAD_X, y + BUBBLE_PAD_Y, content, {
         fontFamily: FONT,
         fontSize: '16px',
@@ -771,19 +864,36 @@ class LevelScene extends Phaser.Scene {
         lineSpacing: 6
       });
 
-      // 先量出文字大小，再画刚好包住它的圆角框，右边中间加一个朝右的小三角当尾巴
+      // 先量出文字大小，再画刚好包住它的圆角框；右边加一根细长、略带弧度的尾巴
       const w = text.width + BUBBLE_PAD_X * 2;
       const h = text.height + BUBBLE_PAD_Y * 2;
       const right = BUBBLE_LEFT + w;
       const midY = y + h / 2;
       const bubble = this.add.graphics();
-      bubble.fillStyle(BUBBLE_COLOR, 0.95);
+      bubble.fillStyle(BUBBLE_COLOR, BUBBLE_ALPHA);
       bubble.fillRoundedRect(BUBBLE_LEFT, y, w, h, 10);
-      bubble.fillTriangle(
-        right - 1, midY - 7,
-        right - 1, midY + 7,
-        right + 10, midY
-      );
+      // 尾巴：细长，弯弧朝下（控制点在弦下方；之前在上方所以看起来向上鼓）
+      const tipX = right + 26;
+      const tipY = midY + 8;
+      const steps = 10;
+      bubble.beginPath();
+      bubble.moveTo(right - 1, midY - 4);
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        // 上沿：控制点偏下，弧向下鼓
+        const ux = (1 - t) * (1 - t) * (right - 1) + 2 * (1 - t) * t * (right + 14) + t * t * tipX;
+        const uy = (1 - t) * (1 - t) * (midY - 4) + 2 * (1 - t) * t * (midY + 14) + t * t * tipY;
+        bubble.lineTo(ux, uy);
+      }
+      for (let i = steps - 1; i >= 0; i--) {
+        const t = i / steps;
+        // 下沿：控制点靠近弦，弧度更小
+        const lx = (1 - t) * (1 - t) * (right - 1) + 2 * (1 - t) * t * (right + 14) + t * t * tipX;
+        const ly = (1 - t) * (1 - t) * (midY + 4) + 2 * (1 - t) * t * (midY + 12) + t * t * tipY;
+        bubble.lineTo(lx, ly);
+      }
+      bubble.closePath();
+      bubble.fillPath();
 
       this.clueBox.add([bubble, text]);   // 框在下，字在上
       y += h + BUBBLE_GAP;
@@ -800,18 +910,16 @@ class EndScene extends Phaser.Scene {
     // 片尾也用同一张壁纸；文字改浅色，在花纹上看得清
     this.cameras.main.setBackgroundColor('#ffffff');
     addWallpaper(this);
+    this.input.setDefaultCursor(CURSOR_CSS);
 
-    this.add.text(640, 300, '早安', {
+    this.add.text(640, 300, 'Good Morning', {
       fontFamily: FONT, fontSize: '56px', color: '#f0f4f8'
     }).setOrigin(0.5);
 
-    const button = this.add.rectangle(640, 430, 220, 64, 0x4f86bf)
-      .setInteractive({ useHandCursor: true });
-    this.add.text(640, 430, '再来一次', {
-      fontFamily: FONT, fontSize: '24px', color: '#ffffff'
-    }).setOrigin(0.5);
-
-    button.on('pointerup', () => this.scene.start('Level', { index: 0 }));
+    const button = addNoteButton(this, 640, 430, 'Play Again', 220);
+    if (button && button.input) {
+      button.on('pointerup', () => this.scene.start('Level', { index: 0 }));
+    }
   }
 }
 
