@@ -235,10 +235,19 @@ const TUNING = {
 // 全局壁纸：开始画面、三关、结尾共用；铺满 1280x720
 const WALLPAPER = { key: 'wallpaper_01', path: 'assets/backgrounds/wallpaper_01.jpg' };
 const BTN_NOTE = { key: 'btn_note_01', path: 'assets/ui/btn_note_01.png' };
+const BGM = { key: 'bgm_stillness', path: 'assets/audio/bgm_stillness.mp3' };
 const GAME_W = 1280;
 const GAME_H = 720;
 // 自定义鼠标：缩小后的手图，热点对准食指指尖
 const CURSOR_CSS = "url('assets/ui/cursor_hand_sm.png') 18 9, auto";
+
+// 背景音乐：全程循环；浏览器要先有一次点击/触摸才会真正出声
+function ensureBgm(scene) {
+  if (!scene.cache.audio.exists(BGM.key)) return;
+  let music = scene.sound.get(BGM.key);
+  if (!music) music = scene.sound.add(BGM.key, { loop: true, volume: 0.4 });
+  if (!music.isPlaying) music.play();
+}
 
 // 字条按钮：撕页便签底图 + 深色文字；返回可点的图片（当热区）
 function addNoteButton(scene, x, y, label, width = 220) {
@@ -396,6 +405,46 @@ function drawImageItem(scene, s) {
   return img;
 }
 
+// 非目标物的点击判定圆：用显示中心 + 大致半径（图片按显示框，色块按 size）
+function hitCircleFor(s, obj) {
+  if (!obj) return null;
+  if (s.type === 'image' && obj.displayWidth) {
+    const w = obj.displayWidth;
+    const h = obj.displayHeight;
+    return {
+      x: obj.x + (0.5 - obj.originX) * w,
+      y: obj.y + (0.5 - obj.originY) * h,
+      r: Math.max(18, Math.min(w, h) * 0.48)
+    };
+  }
+  if (s.type === 'rect') {
+    const hw = (s.w || 0) * 0.5;
+    const hh = (s.h || 0) * 0.5;
+    return { x: s.x, y: s.y, r: Math.max(hw, hh) };
+  }
+  const size = s.size || 16;
+  return { x: s.x, y: s.y, r: Math.max(16, size * 1.2) };
+}
+
+// 物体小幅度左右晃一下（绕自身原点，底对齐的图会像「根部」晃）
+function shakeObject(scene, obj) {
+  if (!obj || obj._shaking) return;
+  obj._shaking = true;
+  const base = obj.angle || 0;
+  scene.tweens.add({
+    targets: obj,
+    angle: base + 7,
+    duration: 55,
+    yoyo: true,
+    repeat: 3,
+    ease: 'Sine.easeInOut',
+    onComplete: () => {
+      obj.setAngle(base);
+      obj._shaking = false;
+    }
+  });
+}
+
 // 目标飞进格子后的缩放比例（只缩小，不放大）
 // 色块用 size；图片用纹理原高度，让格子里大约显示为格子边长的 55%
 function iconScale(s, obj) {
@@ -424,6 +473,7 @@ class StartScene extends Phaser.Scene {
   preload() {
     this.load.image(WALLPAPER.key, WALLPAPER.path);
     this.load.image(BTN_NOTE.key, BTN_NOTE.path);
+    this.load.audio(BGM.key, BGM.path);
     LEVELS.forEach(level => {
       if (level.frame) this.load.image(level.frame.key, level.frame.path);
       if (level.frameFront) this.load.image(level.frameFront.key, level.frameFront.path);
@@ -441,26 +491,30 @@ class StartScene extends Phaser.Scene {
 
     // 标题
     this.add.text(640, 250, "What's in the Fog", {
-      fontFamily: FONT, fontSize: '64px', color: '#oooooo'
+      fontFamily: FONT, fontSize: '64px', color: '#ffffff'
     }).setOrigin(0.5);
 
     // 开场文字
     this.add.text(640, 345, 'Winter night. The glass is fogged over.', {
-      fontFamily: FONT, fontSize: '20px', color: '#oooooo'
+      fontFamily: FONT, fontSize: '20px', color: '#ffffff'
     }).setOrigin(0.5);
 
     // 玩法提示
     this.add.text(640, 380, 'Wipe the fog and find what the clues describe.', {
-      fontFamily: FONT, fontSize: '20px', color: '#oooooo'
+      fontFamily: FONT, fontSize: '20px', color: '#ffffff'
     }).setOrigin(0.5);
 
     // 底部字条按钮：点字条或点屏幕任意处都能开始
     const button = addNoteButton(this, 640, 550, 'Click to Start', 220);
 
+    // 第一次点击后开始循环播放 BGM（浏览器音频解锁）
+    this.input.once('pointerdown', () => ensureBgm(this));
+
     let started = false;
     const go = () => {
       if (started) return;
       started = true;
+      ensureBgm(this);
       this.scene.start('Level', { index: 0 });
     };
     if (button && button.input) button.on('pointerup', go);
@@ -488,6 +542,7 @@ class LevelScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(level.bgColor);
     addWallpaper(this);
     this.input.setDefaultCursor(CURSOR_CSS);
+    ensureBgm(this);
 
     // 画面分层（从下到上，后画的在上面）：
     // 壁纸 → 胸像 → 鱼缸 → 关卡内容 → 雾 → 界面 → 再接收输入
@@ -505,10 +560,19 @@ class LevelScene extends Phaser.Scene {
       this.createGlassTint();
     }
 
-    level.scenery.filter(s => !s.front).forEach(s => drawShape(this, s));
+    // 非目标物可点击晃动：登记 scenery + decoys（跳过超宽背景，如篱笆）
+    this.shakeables = [];
+    const registerShake = (s, obj) => {
+      if (!obj || s.type === 'rect') return;
+      const dw = obj.displayWidth || 0;
+      if ((s.width && s.width > 400) || dw > 400) return;
+      const hit = hitCircleFor(s, obj);
+      if (hit) this.shakeables.push({ obj, hit });
+    };
+    level.scenery.filter(s => !s.front).forEach(s => registerShake(s, drawShape(this, s)));
     this.target = drawShape(this, level.target);
-    level.decoys.forEach(s => drawShape(this, s));
-    level.scenery.filter(s => s.front).forEach(s => drawShape(this, s));
+    level.decoys.forEach(s => registerShake(s, drawShape(this, s)));
+    level.scenery.filter(s => s.front).forEach(s => registerShake(s, drawShape(this, s)));
 
     this.createFog();
 
@@ -765,15 +829,26 @@ class LevelScene extends Phaser.Scene {
     });
   }
 
-  // 点击判定：点在目标区域里，且那里的雾「现在擦开够多」或「TAP_GRACE_MS 之内擦开够多过」，才算找到
+  // 点击判定：点中目标且雾够开 → 取出；否则若点中非目标物 → 小幅晃动
   tryTap(x, y) {
     if (this.done) return;
     const hit = this.level.target.hit;
-    if (Phaser.Math.Distance.Between(x, y, hit.x, hit.y) > hit.r) return;
-    const clearNow = this.targetClearedFraction() * 100 >= TUNING.clearPercent;
-    const clearRecently = this.time.now - this.lastClearEnoughAt <= TAP_GRACE_MS;
-    if (!clearNow && !clearRecently) return;
-    this.collect();
+    if (Phaser.Math.Distance.Between(x, y, hit.x, hit.y) <= hit.r) {
+      const clearNow = this.targetClearedFraction() * 100 >= TUNING.clearPercent;
+      const clearRecently = this.time.now - this.lastClearEnoughAt <= TAP_GRACE_MS;
+      if (clearNow || clearRecently) {
+        this.collect();
+        return;
+      }
+    }
+    // 后画的优先（更靠前的物体）
+    for (let i = this.shakeables.length - 1; i >= 0; i--) {
+      const { obj, hit: h } = this.shakeables[i];
+      if (Phaser.Math.Distance.Between(x, y, h.x, h.y) <= h.r) {
+        shakeObject(this, obj);
+        return;
+      }
+    }
   }
 
   // ---------- 取出目标 ----------
@@ -911,6 +986,7 @@ class EndScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#ffffff');
     addWallpaper(this);
     this.input.setDefaultCursor(CURSOR_CSS);
+    ensureBgm(this);
 
     this.add.text(640, 300, 'Good Morning', {
       fontFamily: FONT, fontSize: '56px', color: '#f0f4f8'
