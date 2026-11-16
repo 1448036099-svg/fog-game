@@ -531,22 +531,23 @@ class StartScene extends Phaser.Scene {
     this.input.setDefaultCursor(CURSOR_CSS);
 
     // 标题
-    this.add.text(640, 250, "What's in the Fog", {
+    this.add.text(640, 200, "What's in the Fog", {
       fontFamily: FONT, fontSize: '64px', color: '#ffffff'
     }).setOrigin(0.5);
 
-    // 开场文字
-    this.add.text(640, 345, 'Winter night. The glass is fogged over.', {
-      fontFamily: FONT, fontSize: '20px', color: '#ffffff'
-    }).setOrigin(0.5);
-
-    // 玩法提示
-    this.add.text(640, 380, 'Wipe the fog and find what the clues describe.', {
-      fontFamily: FONT, fontSize: '20px', color: '#ffffff'
-    }).setOrigin(0.5);
+    // 开场文字（标题下方）
+    this.add.text(640, 270,
+      'Winter night. The glass is covered in fog.\n\n' +
+      'Something has gone missing from these little worlds, and the night is still waiting for its light.\n\n' +
+      'Wipe away the fog, follow the clues, and find the lost objects. Bring them back, one by one, and help the night become morning.',
+      {
+        fontFamily: FONT, fontSize: '20px', color: '#ffffff',
+        align: 'center', wordWrap: { width: 720 }, lineSpacing: 3
+      }
+    ).setOrigin(0.5, 0);
 
     // 底部字条按钮：点字条或点屏幕任意处都能开始
-    const button = addNoteButton(this, 640, 550, 'Click to Start', 220);
+    const button = addNoteButton(this, 640, 580, 'Start Exploring', 240);
 
     // 第一次点击后开始循环播放 BGM（浏览器音频解锁）
     this.input.once('pointerdown', () => ensureBgm(this));
