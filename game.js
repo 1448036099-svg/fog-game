@@ -235,7 +235,11 @@ const TUNING = {
 // 全局壁纸：开始画面、三关、结尾共用；铺满 1280x720
 const WALLPAPER = { key: 'wallpaper_01', path: 'assets/backgrounds/wallpaper_01.jpg' };
 const BTN_NOTE = { key: 'btn_note_01', path: 'assets/ui/btn_note_01.png' };
-const BGM = { key: 'bgm_stillness', path: 'assets/audio/bgm_stillness.mp3' };
+const BGM = { key: 'bgm_window_north', path: 'assets/audio/bgm_window_facing_north.mp3' };
+const SFX_POLISH = { key: 'sfx_polish', path: 'assets/audio/sfx_polish.mp3' };
+const SFX_BUTTON = { key: 'sfx_button', path: 'assets/audio/sfx_button.mp3' };
+const SFX_BLIP = { key: 'sfx_blip', path: 'assets/audio/sfx_blip.mp3' };
+const SFX_CORRECT = { key: 'sfx_correct', path: 'assets/audio/sfx_correct.mp3' };
 const GAME_W = 1280;
 const GAME_H = 720;
 // 自定义鼠标：缩小后的手图，热点对准食指指尖
@@ -245,8 +249,40 @@ const CURSOR_CSS = "url('assets/ui/cursor_hand_sm.png') 18 9, auto";
 function ensureBgm(scene) {
   if (!scene.cache.audio.exists(BGM.key)) return;
   let music = scene.sound.get(BGM.key);
-  if (!music) music = scene.sound.add(BGM.key, { loop: true, volume: 0.4 });
+  if (!music) music = scene.sound.add(BGM.key, { loop: true, volume: 0.12 });
+  else music.setVolume(0.12);
   if (!music.isPlaying) music.play();
+}
+
+// 擦玻璃音效：真正开始擦时循环播，松手或过关时停
+function startWipeSfx(scene) {
+  if (!scene.cache.audio.exists(SFX_POLISH.key)) return;
+  let sfx = scene.sound.get(SFX_POLISH.key);
+  if (!sfx) sfx = scene.sound.add(SFX_POLISH.key, { loop: true, volume: 0.55 });
+  if (!sfx.isPlaying) sfx.play();
+}
+
+function stopWipeSfx(scene) {
+  const sfx = scene.sound.get(SFX_POLISH.key);
+  if (sfx && sfx.isPlaying) sfx.stop();
+}
+
+// 开始 / 再来一次按钮音效（短促，切场景前稍等一下以免被掐断）
+function playButtonSfx(scene) {
+  if (!scene.cache.audio.exists(SFX_BUTTON.key)) return;
+  scene.sound.play(SFX_BUTTON.key, { volume: 0.7 });
+}
+
+// 点到非目标物时的提示音
+function playBlipSfx(scene) {
+  if (!scene.cache.audio.exists(SFX_BLIP.key)) return;
+  scene.sound.play(SFX_BLIP.key, { volume: 0.65 });
+}
+
+// 点中目标取出时的正确提示音
+function playCorrectSfx(scene) {
+  if (!scene.cache.audio.exists(SFX_CORRECT.key)) return;
+  scene.sound.play(SFX_CORRECT.key, { volume: 0.7 });
 }
 
 // 字条按钮：撕页便签底图 + 深色文字；返回可点的图片（当热区）
@@ -430,6 +466,7 @@ function hitCircleFor(s, obj) {
 function shakeObject(scene, obj) {
   if (!obj || obj._shaking) return;
   obj._shaking = true;
+  playBlipSfx(scene);
   const base = obj.angle || 0;
   scene.tweens.add({
     targets: obj,
@@ -474,6 +511,10 @@ class StartScene extends Phaser.Scene {
     this.load.image(WALLPAPER.key, WALLPAPER.path);
     this.load.image(BTN_NOTE.key, BTN_NOTE.path);
     this.load.audio(BGM.key, BGM.path);
+    this.load.audio(SFX_POLISH.key, SFX_POLISH.path);
+    this.load.audio(SFX_BUTTON.key, SFX_BUTTON.path);
+    this.load.audio(SFX_BLIP.key, SFX_BLIP.path);
+    this.load.audio(SFX_CORRECT.key, SFX_CORRECT.path);
     LEVELS.forEach(level => {
       if (level.frame) this.load.image(level.frame.key, level.frame.path);
       if (level.frameFront) this.load.image(level.frameFront.key, level.frameFront.path);
@@ -515,7 +556,8 @@ class StartScene extends Phaser.Scene {
       if (started) return;
       started = true;
       ensureBgm(this);
-      this.scene.start('Level', { index: 0 });
+      playButtonSfx(this);
+      this.time.delayedCall(200, () => this.scene.start('Level', { index: 0 }));
     };
     if (button && button.input) button.on('pointerup', go);
     this.input.once('pointerup', go);
@@ -811,6 +853,7 @@ class LevelScene extends Phaser.Scene {
       const moved = Phaser.Math.Distance.Between(this.downX, this.downY, pointer.x, pointer.y);
       this.maxMove = Math.max(this.maxMove, moved);
       if (this.maxMove < TAP_MAX_MOVE) return;
+      startWipeSfx(this);
       this.wipeLine(this.lastX, this.lastY, pointer.x, pointer.y);
       this.lastX = pointer.x;
       this.lastY = pointer.y;
@@ -820,12 +863,16 @@ class LevelScene extends Phaser.Scene {
     this.input.on('pointerup', (pointer) => {
       if (!this.isWiping || pointer.id !== this.pointerId) return;
       this.isWiping = false;
+      stopWipeSfx(this);
       if (this.maxMove < TAP_MAX_MOVE) this.tryTap(pointer.x, pointer.y);
     });
 
     // 在画布外松开：只结束擦拭
     this.input.on('pointerupoutside', (pointer) => {
-      if (pointer.id === this.pointerId) this.isWiping = false;
+      if (pointer.id === this.pointerId) {
+        this.isWiping = false;
+        stopWipeSfx(this);
+      }
     });
   }
 
@@ -855,6 +902,8 @@ class LevelScene extends Phaser.Scene {
   // 目标缩小并飞进右侧本关的格子，然后进入下一关
   collect() {
     this.done = true;
+    stopWipeSfx(this);
+    playCorrectSfx(this);
     this.clueTimer.remove();
 
     const s = this.level.target;
@@ -994,7 +1043,10 @@ class EndScene extends Phaser.Scene {
 
     const button = addNoteButton(this, 640, 430, 'Play Again', 220);
     if (button && button.input) {
-      button.on('pointerup', () => this.scene.start('Level', { index: 0 }));
+      button.on('pointerup', () => {
+        playButtonSfx(this);
+        this.time.delayedCall(200, () => this.scene.start('Level', { index: 0 }));
+      });
     }
   }
 }
